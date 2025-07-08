@@ -160,5 +160,10 @@ void FixedAllocator::mark_block_free(size_t index) {
 }
 
 bool FixedAllocator::is_block_free(size_t index) const {
-    return !block_bitmap_[index];
+    if (index >= num_blocks_) {
+        std::cerr << "Error: is_block_free() - index " << index 
+                  << " out of bounds (max: " << num_blocks_ - 1 << ")" << std::endl;
+        return false;  // Invalid index
+    }
+    return !block_bitmap_[index];  // false = free
 }
