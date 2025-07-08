@@ -67,12 +67,23 @@ void* FixedAllocator::allocate() {
 bool FixedAllocator::deallocate(void* ptr) {
     // TODO: Implement this
     // 1. Validate pointer using is_valid_pointer()
+    if(!is_valid_pointer(ptr)) {
+        std::cerr << "Invalid pointer deallocation attempt: " << ptr << std::endl;
+        return false;  // Invalid pointer
+    }
     // 2. Convert pointer to block index
+    size_t block_index = ptr_to_block_index(ptr);
     // 3. Mark block as free
+    if (is_block_free(block_index)) {
+        std::cerr << "Double-free or invalid block index: " << block_index << std::endl;
+        return false;  // Invalid block index or already free
+    }
     // 4. Return success/failure
-    
-    std::cout << "deallocate() called with ptr=" << ptr << " - TODO: implement" << std::endl;
-    return false;
+    mark_block_free(block_index);
+    std::cout << "Deallocated block at index: " << block_index << std::endl;
+    return true;  // Successful deallocation
+
+
 }
 
 bool FixedAllocator::is_valid_pointer(void* ptr) const {
@@ -129,13 +140,21 @@ size_t FixedAllocator::find_free_block() const {
 }
 
 void FixedAllocator::mark_block_used(size_t index) {
-    // TODO: Add bounds checking
+    if(index >= num_blocks_) {
+        std::cerr << "Error: mark_block_used() - index " << index 
+                  << " out of bounds (max: " << num_blocks_ - 1 << ")" << std::endl;
+        return;
+    }
     block_bitmap_[index] = true;
     --free_blocks_count_;
 }
 
 void FixedAllocator::mark_block_free(size_t index) {
-    // TODO: Add bounds checking and double-free detection
+   if(index>= num_blocks_) {
+        std::cerr << "Error: mark_block_free() - index " << index 
+                  << " out of bounds (max: " << num_blocks_ - 1 << ")" << std::endl;
+        return;
+    }
     block_bitmap_[index] = false;
     ++free_blocks_count_;
 }
