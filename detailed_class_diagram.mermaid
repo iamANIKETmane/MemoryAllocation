@@ -1,0 +1,143 @@
+classDiagram
+    class IAllocator {
+        <<abstract>>
+        +allocate(size) void*
+        +deallocate(ptr) bool
+        +owns(ptr) bool
+        +get_stats() Statistics
+        +validate_heap() bool
+        +get_name() string
+        #update_stats()
+        #check_corruption()
+    }
+    
+    class FixedPoolAllocator {
+        -memory_pool_: uint8_t*
+        -block_size_: size_t
+        -num_blocks_: size_t
+        -free_list_head_: atomic~FreeBlock*~
+        -free_blocks_count_: atomic~size_t~
+        -stats_: Statistics
+        -debug_enabled_: bool
+        
+        +allocate() void*
+        +deallocate(ptr) bool
+        +is_valid_pointer(ptr) bool
+        +get_free_blocks() size_t
+        +validate_heap() bool
+        
+        -initialize_free_list()
+        -pop_free_block() FreeBlock*
+        -push_free_block(block)
+        -ptr_to_block_index(ptr) size_t
+        -poison_memory(ptr, size)
+    }
+    
+    class BuddyAllocator {
+        -memory_pool_: uint8_t*
+        -tree_: BinaryTree
+        -min_block_size_: size_t
+        -max_size_: size_t
+        
+        +allocate(size) void*
+        +deallocate(ptr) bool
+        +get_block_size(ptr) size_t
+        
+        -split_block(node) TreeNode*
+        -merge_blocks(left, right)
+        -find_buddy(block) TreeNode*
+        -round_to_power_of_2(size) size_t
+    }
+    
+    class SlabAllocator {
+        -slabs_: map~type_id, SlabCache*~
+        -default_slab_size_: size_t
+        
+        +allocate_object~T~() T*
+        +deallocate_object~T~(obj)
+        +get_slab~T~() SlabCache*
+        
+        -create_slab~T~() SlabCache*
+        -destroy_slab(cache)
+    }
+    
+    class Statistics {
+        +total_allocations: atomic~uint64_t~
+        +total_deallocations: atomic~uint64_t~
+        +allocation_failures: atomic~uint64_t~
+        +peak_usage: atomic~size_t~
+        +current_usage: atomic~size_t~
+        +total_alloc_time: atomic~uint64_t~
+        +max_alloc_time: atomic~uint64_t~
+        
+        +reset()
+        +get_summary() string
+        +calculate_fragmentation() double
+    }
+    
+    class FreeBlock {
+        +next: FreeBlock*
+    }
+    
+    class DebugHeader {
+        +magic: uint32_t
+        +block_index: size_t
+        +alloc_time: time_point
+        +checksum: uint32_t
+    }
+    
+    class AllocatorFactory {
+        +createPoolAllocator(config) unique_ptr~IAllocator~
+        +createBuddyAllocator(config) unique_ptr~IAllocator~
+        +createSlabAllocator(config) unique_ptr~IAllocator~
+        +createStandardAllocator() unique_ptr~IAllocator~
+    }
+    
+    class BenchmarkSuite {
+        -allocators_: vector~IAllocator*~
+        -test_patterns_: vector~TestPattern~
+        
+        +add_allocator(alloc)
+        +run_benchmark(pattern) Results
+        +compare_performance() Report
+        +generate_charts()
+    }
+    
+    class MessageQueue~T~ {
+        -allocator_: IAllocator*
+        -buffer_: CircularBuffer
+        -head_: atomic~size_t~
+        -tail_: atomic~size_t~
+        
+        +enqueue(item) bool
+        +dequeue() optional~T~
+        +is_full() bool
+        +is_empty() bool
+        
+        -allocate_message() void*
+        -free_message(ptr)
+    }
+    
+    %% Inheritance
+    IAllocator <|-- FixedPoolAllocator
+    IAllocator <|-- BuddyAllocator
+    IAllocator <|-- SlabAllocator
+    
+    %% Composition
+    FixedPoolAllocator *-- FreeBlock : "manages"
+    FixedPoolAllocator *-- DebugHeader : "uses when debugging"
+    FixedPoolAllocator *-- Statistics : "tracks"
+    
+    BuddyAllocator *-- Statistics : "tracks"
+    SlabAllocator *-- Statistics : "tracks"
+    
+    %% Dependencies
+    AllocatorFactory ..> FixedPoolAllocator : "creates"
+    AllocatorFactory ..> BuddyAllocator : "creates"
+    AllocatorFactory ..> SlabAllocator : "creates"
+    
+    BenchmarkSuite ..> IAllocator : "tests"
+    MessageQueue ..> IAllocator : "uses"
+    
+    %% Aggregation
+    BenchmarkSuite o-- IAllocator : "benchmarks multiple"
