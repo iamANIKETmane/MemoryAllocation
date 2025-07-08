@@ -138,7 +138,6 @@ size_t FixedAllocator::find_free_block() const {
     }
     return num_blocks_;  // No free block found
 }
-
 void FixedAllocator::mark_block_used(size_t index) {
     if(index >= num_blocks_) {
         std::cerr << "Error: mark_block_used() - index " << index 
