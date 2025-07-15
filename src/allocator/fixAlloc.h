@@ -16,8 +16,10 @@
  * - Memory debugging and leak detection
  * - Performance monitoring and statistics
  */
+
 class FixedAllocator {
 public:
+
     // Construction with enhanced options
     struct Config {
         size_t block_size = 64;

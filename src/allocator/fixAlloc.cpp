@@ -166,3 +166,27 @@ bool FixedAllocator::is_block_free(size_t index) const {
     }
     return !block_bitmap_[index];  // false = free
 }
+void FixedAllocator::deallocate(void* ptr) {
+    if (!ptr || !is_valid_pointer(ptr)) {
+        return; // Invalid pointer
+    }
+    
+    if (is_double_free(ptr)) {
+        std::cerr << "Double free detected!" << std::endl;
+        return;
+    }
+    
+    // Add to free list (lock-free)
+    void* head = free_list_head.load();
+    do {
+        *(void**)ptr = head;
+    } while (!free_list_head.compare_exchange_weak(head, ptr));
+    
+    used_blocks--;
+    allocation_map[ptr] = false;
+}
+
+bool FixedAllocator::is_double_free(void* ptr) {
+    return allocation_map.find(ptr) != allocation_map.end() && 
+           !allocation_map[ptr];
+}
