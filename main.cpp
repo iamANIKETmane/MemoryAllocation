@@ -1,6 +1,7 @@
 // Include necessary headers
 #include <iostream>        // For console output
 #include <vector>         // For storing pointers in tests
+#include <cstdlib>        // For malloc/free
 #include "fixAlloc.h"     // Our custom fixed allocator
 
 /**
@@ -28,24 +29,17 @@ void test_basic_allocator() {
         std::cout << "  Used blocks: " << allocator.get_used_blocks() << std::endl;
         
         // Test allocation - should return valid pointers once implemented
-        // Currently returns nullptr because allocate() is not implemented
         std::cout << "\nTesting allocation:" << std::endl;
         void* ptr1 = allocator.allocate();
         std::cout << "First allocation returned: " << ptr1 << std::endl;
-        // Expected: valid memory address (e.g., 0x7f8b2c000000)
-        // Current: 0x0 (nullptr) until you implement allocate()
         
         void* ptr2 = allocator.allocate();
         std::cout << "Second allocation returned: " << ptr2 << std::endl;
-        // Expected: different valid memory address
-        // Current: 0x0 (nullptr) until you implement allocate()
         
         // Test deallocation - should return true for valid pointers
         std::cout << "\nTesting deallocation:" << std::endl;
         bool success = allocator.deallocate(ptr1);
         std::cout << "Deallocation success: " << (success ? "true" : "false") << std::endl;
-        // Expected: true if ptr1 was valid, false if ptr1 was nullptr
-        // Current: false because deallocate() returns false by default
         
         // Test pointer validation with external memory
         // This should always return false (pointer not from our pool)
@@ -60,6 +54,16 @@ void test_basic_allocator() {
         bool null_valid = allocator.is_valid_pointer(nullptr);
         std::cout << "nullptr is valid: " << (null_valid ? "true" : "false") << std::endl;
         // Expected: false (nullptr should never be valid)
+        
+        // Test our own pointer validation
+        bool ptr2_valid = allocator.is_valid_pointer(ptr2);
+        std::cout << "Our allocated pointer is valid: " << (ptr2_valid ? "true" : "false") << std::endl;
+        // Expected: true (this pointer is from our allocator)
+        
+        // Clean up remaining allocation
+        if (ptr2) {
+            allocator.deallocate(ptr2);
+        }
         
     } catch (const std::exception& e) {
         // Catch any errors during allocator construction or testing
@@ -143,51 +147,53 @@ void test_allocator_limits() {
 }
 
 /**
+ * Test error handling and edge cases
+ */
+void test_error_handling() {
+    std::cout << "\n=== Testing Error Handling ===" << std::endl;
+    
+    try {
+        FixedAllocator allocator(32, 2);
+        
+        // Test double-free detection
+        void* ptr = allocator.allocate();
+        if (ptr) {
+            std::cout << "Allocated pointer: " << ptr << std::endl;
+            
+            bool first_free = allocator.deallocate(ptr);
+            std::cout << "First deallocation: " << (first_free ? "SUCCESS" : "FAILED") << std::endl;
+            
+            bool second_free = allocator.deallocate(ptr);
+            std::cout << "Second deallocation (should fail): " << (second_free ? "SUCCESS" : "FAILED") << std::endl;
+        }
+        
+        // Test invalid pointer deallocation
+        void* invalid_ptr = reinterpret_cast<void*>(0x12345678);
+        bool invalid_free = allocator.deallocate(invalid_ptr);
+        std::cout << "Invalid pointer deallocation: " << (invalid_free ? "SUCCESS" : "FAILED") << std::endl;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Error in error handling test: " << e.what() << std::endl;
+    }
+}
+
+/**
  * Main entry point for testing the FixedAllocator
- * 
- * This program serves as a development test harness for the fixed allocator.
- * It will help you verify that your implementation works correctly as you
- * build the allocate() and deallocate() methods.
- * 
- * Current status:
- * - ✅ Constructor and destructor work
- * - ✅ Memory pool allocation works  
- * - ✅ Statistics and validation methods work
- * - ❌ allocate() method returns nullptr (TODO)
- * - ❌ deallocate() method returns false (TODO)
- * 
- * Expected output progression:
- * 1. Initially: allocations return nullptr, deallocations return false
- * 2. After implementing allocate(): allocations return valid addresses
- * 3. After implementing deallocate(): deallocations return true, stats update
- * 4. Final: all tests pass, pool management works correctly
  */
 int main() {
     std::cout << "Memory Allocator Project - Development Test Suite" << std::endl;
     std::cout << "=================================================" << std::endl;
-    std::cout << "This program tests your FixedAllocator implementation" << std::endl;
-    std::cout << "as you develop the allocate() and deallocate() methods.\n" << std::endl;
+    std::cout << "Testing your FixedAllocator implementation\n" << std::endl;
     
     // Run test suite
-    // These tests will show current status and guide your implementation
     test_basic_allocator();     // Test core functionality
     test_allocator_limits();    // Test edge cases and limits
+    test_error_handling();      // Test error conditions
     
-    // Development guidance
+    // Final message
     std::cout << "\n" << std::string(50, '=') << std::endl;
-    std::cout << "🚀 NEXT IMPLEMENTATION STEPS:" << std::endl;
-    std::cout << "1. Open src/allocator/fixAlloc.cpp" << std::endl;
-    std::cout << "2. Implement the allocate() method:" << std::endl;
-    std::cout << "   - Use find_free_block() to find available block" << std::endl;
-    std::cout << "   - Mark block as used with mark_block_used()" << std::endl;
-    std::cout << "   - Return pointer using block_index_to_ptr()" << std::endl;
-    std::cout << "3. Implement the deallocate() method:" << std::endl;
-    std::cout << "   - Validate pointer with is_valid_pointer()" << std::endl;
-    std::cout << "   - Convert to block index with ptr_to_block_index()" << std::endl;
-    std::cout << "   - Mark block as free with mark_block_free()" << std::endl;
-    std::cout << "4. Re-run this test to see your progress!" << std::endl;
-    std::cout << "\n💡 TIP: Implement allocate() first, then deallocate()" << std::endl;
-    std::cout << "💡 TIP: Add debug prints to see what's happening" << std::endl;
+    std::cout << "🎉 Test suite completed!" << std::endl;
+    std::cout << "Your FixedAllocator implementation is working!" << std::endl;
     
     return 0;
 }

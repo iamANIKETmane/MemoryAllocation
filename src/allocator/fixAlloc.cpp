@@ -65,25 +65,25 @@ void* FixedAllocator::allocate() {
 }
 
 bool FixedAllocator::deallocate(void* ptr) {
-    // TODO: Implement this
     // 1. Validate pointer using is_valid_pointer()
-    if(!is_valid_pointer(ptr)) {
+    if (!is_valid_pointer(ptr)) {
         std::cerr << "Invalid pointer deallocation attempt: " << ptr << std::endl;
         return false;  // Invalid pointer
     }
+    
     // 2. Convert pointer to block index
     size_t block_index = ptr_to_block_index(ptr);
-    // 3. Mark block as free
+    
+    // 3. Check if block is already free (double-free detection)
     if (is_block_free(block_index)) {
-        std::cerr << "Double-free or invalid block index: " << block_index << std::endl;
-        return false;  // Invalid block index or already free
+        std::cerr << "Double-free detected for block at index: " << block_index << std::endl;
+        return false;  // Block already free
     }
-    // 4. Return success/failure
+    
+    // 4. Mark block as free
     mark_block_free(block_index);
     std::cout << "Deallocated block at index: " << block_index << std::endl;
     return true;  // Successful deallocation
-
-
 }
 
 bool FixedAllocator::is_valid_pointer(void* ptr) const {
@@ -118,7 +118,7 @@ bool FixedAllocator::is_empty() const {
     return free_blocks_count_ == num_blocks_;
 }
 
-// TODO: Implement these private helper methods
+// Private helper methods implementation
 size_t FixedAllocator::ptr_to_block_index(void* ptr) const {
     uint8_t* byte_ptr = static_cast<uint8_t*>(ptr);
     return (byte_ptr - memory_pool_) / block_size_;
@@ -129,8 +129,7 @@ void* FixedAllocator::block_index_to_ptr(size_t index) const {
 }
 
 size_t FixedAllocator::find_free_block() const {
-    // TODO: Implement efficient free block finding
-    // Linear search for now (you can optimize later)
+    // Linear search for now (can be optimized later with bit operations)
     for (size_t i = 0; i < num_blocks_; ++i) {
         if (!block_bitmap_[i]) {  // false = free
             return i;
@@ -138,8 +137,9 @@ size_t FixedAllocator::find_free_block() const {
     }
     return num_blocks_;  // No free block found
 }
+
 void FixedAllocator::mark_block_used(size_t index) {
-    if(index >= num_blocks_) {
+    if (index >= num_blocks_) {
         std::cerr << "Error: mark_block_used() - index " << index 
                   << " out of bounds (max: " << num_blocks_ - 1 << ")" << std::endl;
         return;
@@ -149,7 +149,7 @@ void FixedAllocator::mark_block_used(size_t index) {
 }
 
 void FixedAllocator::mark_block_free(size_t index) {
-   if(index>= num_blocks_) {
+    if (index >= num_blocks_) {
         std::cerr << "Error: mark_block_free() - index " << index 
                   << " out of bounds (max: " << num_blocks_ - 1 << ")" << std::endl;
         return;
@@ -165,28 +165,4 @@ bool FixedAllocator::is_block_free(size_t index) const {
         return false;  // Invalid index
     }
     return !block_bitmap_[index];  // false = free
-}
-void FixedAllocator::deallocate(void* ptr) {
-    if (!ptr || !is_valid_pointer(ptr)) {
-        return; // Invalid pointer
-    }
-    
-    if (is_double_free(ptr)) {
-        std::cerr << "Double free detected!" << std::endl;
-        return;
-    }
-    
-    // Add to free list (lock-free)
-    void* head = free_list_head.load();
-    do {
-        *(void**)ptr = head;
-    } while (!free_list_head.compare_exchange_weak(head, ptr));
-    
-    used_blocks--;
-    allocation_map[ptr] = false;
-}
-
-bool FixedAllocator::is_double_free(void* ptr) {
-    return allocation_map.find(ptr) != allocation_map.end() && 
-           !allocation_map[ptr];
 }
